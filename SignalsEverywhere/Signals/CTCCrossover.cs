@@ -79,6 +79,7 @@ public class CTCCrossover : MonoBehaviour
                 // Group is active in storage but no route is lined.
                 // This shouldn't happen under normal CTC operation but could happen on load if switches were moved.
                 _storage.SetCrossoverGroupDirection(group.groupId, CTCTrafficFilter.None);
+                Log.Debug("Crossover {id}: Group {groupId} is active in storage but no route is lined.", id, group.groupId);
             }
         }
         
@@ -90,7 +91,7 @@ public class CTCCrossover : MonoBehaviour
                 case SystemMode.ABS:
                     foreach (var group in signalGroups)
                     {
-                        _storage.SetCrossoverGroupDirection(group.groupId, CTCTrafficFilter.Any);    
+                        _storage.SetCrossoverGroupDirection(group.groupId, CTCTrafficFilter.Any);
                     }
 
                     break;
@@ -185,13 +186,18 @@ public class CTCCrossover : MonoBehaviour
             if (linedRoutes.Count == 0)
                 continue;
 
-            int routeIndex = linedRoutes[0];
-            var route = routes[routeIndex];
-            var outlet = OutletForDirection(route, activeDir);
-
-            if (outlet.Blocks.Contains(block))
+            foreach (var routeIndex in linedRoutes)
             {
-                return activeDir != trafficFilter;
+                if (!group.allowedRoutes.Contains(routeIndex))
+                    continue;
+                var route = routes[routeIndex];
+                var outlet = OutletForDirection(route, activeDir);
+
+                if (outlet.Blocks.Contains(block))
+                {
+                    Log.Debug("Crossover {id}: Block {blockId} is active in route {routeIndex} in direction {direction}.", id, block.id, routeIndex, activeDir);
+                    return activeDir != trafficFilter;
+                }
             }
         }
         

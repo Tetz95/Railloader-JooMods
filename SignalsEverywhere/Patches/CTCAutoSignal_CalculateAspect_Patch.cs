@@ -168,6 +168,46 @@ public class CTCAutoSignal_CalculateAspect_Patch
         return SignalAspect.Stop;
     }
 
+    private static bool TryFixupIntermediateCrossover(CTCAutoSignal __instance, ref SignalAspect __result)
+    {
+        if (__instance.Intermediate == null)
+            return false;
+        
+        Log.Debug($"Fixing up intermediate crossover for signal {__instance.id}");
+        CTCSignal external = __instance.Intermediate.NextExternalSignalForDirection(__instance.direction);
+        if (external == null)
+            return false;
+        CTCCrossover co = external.GetComponentInParent<CTCCrossover>();
+        if (co == null)
+            return false;
+        Log.Debug($"Found crossover {co.id} for signal {external.id}");
+
+        CTCTrafficFilter ctcTrafficFilter;
+        switch (__instance.direction)
+        {
+            case CTCDirection.Left:
+                ctcTrafficFilter = CTCTrafficFilter.Left;
+                break;
+            case CTCDirection.Right:
+                ctcTrafficFilter = CTCTrafficFilter.Right;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+        bool trafficAgainst = co.IsTrafficAgainst(__instance.Intermediate.BlockAtEnd(__instance.direction), ctcTrafficFilter);
+        Log.Debug($"Crossover {co.id} has traffic against block {__instance.Intermediate.BlockAtEnd(__instance.direction)} with direction {__instance.direction}, {ctcTrafficFilter}? {trafficAgainst}");
+        if (trafficAgainst)
+            __result = SignalAspect.Stop;
+        else
+        {
+            var head0 = AspectForBlockAndNextSignal(null, __instance.Intermediate.NextSignal(__instance, __instance.direction), true);
+            __result = SignalAspectForHeads(head0, SemaphoreHeadController.Aspect.Red, SemaphoreHeadController.Aspect.Red);
+            Log.Debug($"Signal {__instance.id} has no traffic against crossover {co.id}. Setting aspect to {__result}");
+        }
+
+        return true;
+    }
+
     [HarmonyPostfix]
     [HarmonyPatch("_CalculateAspect")]
     private static void CalculateAspect(
@@ -182,12 +222,13 @@ public class CTCAutoSignal_CalculateAspect_Patch
             return;
         }
 
-        if (__result != SignalAspect.Stop)
-        {
-            return;
-        }
-
         if (stopReason != 0)
+            return;
+        
+        if (TryFixupIntermediateCrossover(__instance, ref __result))
+            return;
+
+        if (__result != SignalAspect.Stop)
         {
             return;
         }
