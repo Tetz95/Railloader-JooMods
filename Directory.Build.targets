@@ -72,7 +72,7 @@
     <Copy SourceFiles="@(OutputFiles)" DestinationFiles="@(OutputFiles->'$(ModDirectory)\%(RecursiveDir)%(Filename)%(Extension)')" Condition="'$(SkipPublishing)' != 'true' AND '@(OutputFiles)' != ''" />
 
     <!-- Zip it up -->
-    <Exec Command="powershell -Command &quot;Compress-Archive -Path '$(ModsDirectory)' -Destination '$(ZipName)'&quot;" Condition="'$(SkipZip)' != 'true' AND '$(SkipPublishing)' != 'true'" />
+    <Exec Command="pwsh -Command &quot;Compress-Archive -Path '$(ModsDirectory)' -Destination '$(ZipName)'&quot;" Condition="'$(SkipZip)' != 'true' AND '$(SkipPublishing)' != 'true'" />
     
     <!-- Move them to the game directory -->
     <Copy SourceFiles="@(OutputFiles)" DestinationFiles="@(OutputFiles->'$(GameModDir)\%(RecursiveDir)%(Filename)%(Extension)')" Condition="'$(SkipPublishing)' != 'true'" />
