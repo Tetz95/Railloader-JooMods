@@ -290,7 +290,7 @@
     },
     "PredicateType": {
       "type": "string",
-      "enum": [ "Switch", "Blocks", "Interlocking", "NextSignal" ]
+      "enum": [ "Switch", "Block", "InterlockingTrafficDirection", "InterlockingTrafficDirectionIsNot", "AlwaysFalse" ]
     }
   }
 }

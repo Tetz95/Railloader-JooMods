@@ -128,7 +128,7 @@ public class CTCCrossover : MonoBehaviour
     // -----------------------------
 
     
-    private static CTCTrafficFilter AsFilter(SignalDirection direction)
+    public static CTCTrafficFilter AsFilter(SignalDirection direction)
     {
         switch (direction)
         {

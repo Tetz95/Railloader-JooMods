@@ -39,6 +39,7 @@ public class SerializedCTCAutoSignal : SerializedCTCSignal
         }
         base.ApplyTo(signal, ctx);
         ctx.AutoSignals[Id] = signal;
+        signal.gameObject.SetActive(true);
     }
     
     public void ApplyTo(CTCAutoSignal signal, CTCPatchingContext ctx)

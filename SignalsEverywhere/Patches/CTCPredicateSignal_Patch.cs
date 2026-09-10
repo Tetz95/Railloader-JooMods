@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using Game.State;
 using HarmonyLib;
+using Serilog;
 using SignalsEverywhere.Signals;
 using Track.Signals;
-using UnityEngine;
 
 namespace SignalsEverywhere.Patches;
 
@@ -13,39 +12,83 @@ namespace SignalsEverywhere.Patches;
 public class CTCPredicateSignal_Patch
 {
     [HarmonyPatch("OnEnable")]
-    [HarmonyPostfix]
-    public static void OnEnable_Postfix(CTCPredicateSignal __instance)
+    [HarmonyPrefix]
+    public static bool OnEnable_Prefix(CTCPredicateSignal __instance)
     {
-        if (!StateManager.IsHost)
-            return;
-
         var extension = __instance.GetComponent<CTCPredicateSignalCrossoverExtension>();
-        if (extension == null)
-            return;
-
-        var storage = __instance.GetComponentInParent<SignalStorage>();
-        if (storage == null)
-            return;
-
-        foreach (var head in extension.heads)
+        var storage = __instance.GetComponentInParent<SignalStorage>(true);
+        if (extension == null || storage == null)
+            return true;
+        
+        OnEnable_Base(__instance);
+        if (!StateManager.IsHost)
+            return false;
+        
+        Log.Information("CTCPredicateSignal_Patch: OnEnable");
+        if (extension.heads != null)
         {
-            foreach (var predicate in head.predicates)
+            foreach (var head in extension.heads)
             {
-                if (predicate.crossover != null)
+                if (head.predicates == null) continue;
+                foreach (var predicate in head.predicates)
                 {
-                    __instance.UpdatePredicateSignalOnChange<CTCTrafficFilter>(storage.ObserveCrossoverGroupDirection, predicate.crossoverGroupId);
+                    if (predicate.original == null) continue;
+                    switch (predicate.original.type)
+                    {
+                        case CTCPredicateSignal.PredicateType.Switch:
+                            if (predicate.original.switchNode != null)
+                                __instance.UpdatePredicateSignalOnChange<SwitchSetting>(storage.ObserveSwitchPosition, predicate.original.switchNode.id);
+                            continue;
+                        case CTCPredicateSignal.PredicateType.Block:
+                            if (predicate.original.blocks != null)
+                            {
+                                foreach (var bl in predicate.original.blocks)
+                                {
+                                    if (bl != null)
+                                        __instance.UpdatePredicateSignalOnChange<bool>(storage.ObserveBlockOccupancy, bl.id);
+                                }
+                            }
+                            continue;
+                        case CTCPredicateSignal.PredicateType.InterlockingTrafficDirection:
+                        case CTCPredicateSignal.PredicateType.InterlockingTrafficDirectionIsNot:
+                            if (predicate.crossoverGroupId != null)
+                                __instance.UpdatePredicateSignalOnChange<CTCTrafficFilter>(storage.ObserveCrossoverGroupDirection, predicate.crossoverGroupId);
+                            if (predicate.original.switchNode != null)
+                                __instance.UpdatePredicateSignalOnChange<SwitchSetting>(storage.ObserveSwitchPosition, predicate.original.switchNode.id);
+                            continue;
+                        default:
+                            continue;
+                    }
                 }
             }
         }
+
+        if (__instance.heads != null)
+        {
+            foreach (var originalHeads in __instance.heads)
+            {
+                if (originalHeads.nextSignal != null)
+                    __instance.UpdatePredicateSignalOnChange<SignalAspect>(storage.ObserveSignalAspect, originalHeads.nextSignal.id);
+            }
+        }
+
+        return false;
+    }
+
+    [HarmonyPatch(typeof(CTCSignal), "OnEnable")]
+    [HarmonyReversePatch]
+    public static void OnEnable_Base(CTCSignal instance)
+    {
+        throw new NotImplementedException("It's a stub");
     }
 
     [HarmonyPatch("CalculateAspect")]
-    [HarmonyPostfix]
-    public static void CalculateAspect_Postfix(CTCPredicateSignal __instance, ref SignalAspect __result, ref int stopReason)
+    [HarmonyPrefix]
+    public static bool CalculateAspect_Prefix(CTCPredicateSignal __instance, ref SignalAspect __result, ref int stopReason)
     {
         var extension = __instance.GetComponent<CTCPredicateSignalCrossoverExtension>();
         if (extension == null || extension.heads.Count == 0)
-            return;
+            return true;
 
         // If it's already not stop, we might need to downgrade it if crossover predicates are not satisfied.
         // But the original CalculateAspect already calculated based on its predicates.
@@ -58,11 +101,10 @@ public class CTCPredicateSignal_Patch
         for (int i = 0; i < __instance.heads.Count; i++)
         {
             var head = __instance.heads[i];
-            bool originalSatisfied = IsSatisfied(__instance, head);
-            bool extensionSatisfied = extension.IsSatisfied(i);
+            bool extensionSatisfied = extension.IsSatisfied(__instance, i);
 
             SignalAspect aspect = SignalAspect.Stop;
-            if (originalSatisfied && extensionSatisfied)
+            if (extensionSatisfied)
             {
                 aspect = (UnityEngine.Object) head.nextSignal == (UnityEngine.Object) null || !head.nextSignal.isActiveAndEnabled 
                     ? SignalAspect.Approach 
@@ -75,10 +117,8 @@ public class CTCPredicateSignal_Patch
         }
 
         __result = SignalAspectForHeads(head0, head1, head2);
-        if (__result == SignalAspect.Stop)
-        {
-            stopReason = 0; // CTCSignal.StopReason.None
-        }
+        stopReason = 0; // CTCSignal.StopReason.None
+        return false;
     }
 
     private static SignalAspect SignalAspectForHeads(
@@ -99,13 +139,10 @@ public class CTCPredicateSignal_Patch
         return SignalAspect.Stop;
     }
 
-    private static bool IsSatisfied(CTCPredicateSignal instance, CTCPredicateSignal.HeadPredicates head)
-    {
-        return Traverse.Create(instance).Method("IsSatisfied", new[] { typeof(CTCPredicateSignal.HeadPredicates) }).GetValue<bool>(head);
-    }
+    private static FastInvokeHandler AspectDisplayedBySignalInvoker = MethodInvoker.GetHandler(AccessTools.Method(typeof(CTCSignal), "AspectDisplayedBySignal", new[] { typeof(CTCSignal) }));
 
     private static SignalAspect AspectDisplayedBySignal(CTCPredicateSignal instance, CTCSignal signal)
     {
-        return Traverse.Create(instance).Method("AspectDisplayedBySignal", new[] { typeof(CTCSignal) }).GetValue<SignalAspect>(signal);
+        return (SignalAspect)AspectDisplayedBySignalInvoker(instance, signal);
     }
 }

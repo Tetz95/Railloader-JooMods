@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Serilog;
 using StrangeCustoms.Tracks;
 using Track;
 using Track.Signals;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 namespace SignalsEverywhere.Signals;
 
@@ -22,7 +24,7 @@ public class SerializedCTCPredicateSignal : SerializedCTCSignal
             NextCtcSignal = predicates.nextSignal?.id;
         }
         
-        public CTCPredicateSignal.HeadPredicates Apply(CTCPatchingContext ctx, CTCPredicateSignalCrossoverExtension.HeadCrossoverPredicates extensionHeads)
+        public CTCPredicateSignal.HeadPredicates Apply(CTCPatchingContext ctx, CTCPredicateSignalCrossoverExtension.HeadCrossoverPredicates? extensionHeads)
         {
             CTCPredicateSignal.HeadPredicates headPredicates = new();
             headPredicates.predicates = new();
@@ -39,15 +41,11 @@ public class SerializedCTCPredicateSignal : SerializedCTCSignal
     {
         public CTCPredicateSignal.PredicateType Type { get; set; }
         public string? SwitchNode { get; set; }
-        public SwitchSetting SwitchSetting { get; set; }
+        public SwitchSetting? SwitchSetting { get; set; }
         public List<string>? Blocks { get; set; }
         public string? Interlocking { get; set; }
-        public SignalDirection Direction { get; set; }
-        
-        public string? Crossover { get; set; }
+        public SignalDirection? Direction { get; set; }
         public string? CrossoverGroup { get; set; }
-        public CTCTrafficFilter CrossoverDirection { get; set; }
-        public bool IsNot { get; set; }
         
         public Predicate() {}
 
@@ -61,27 +59,25 @@ public class SerializedCTCPredicateSignal : SerializedCTCSignal
             Direction = predicate.direction;
         }
 
-        public CTCPredicateSignal.Predicate Apply(CTCPatchingContext ctx, CTCPredicateSignalCrossoverExtension.HeadCrossoverPredicates? extensionHeads)
+        public CTCPredicateSignal.Predicate? Apply(CTCPatchingContext ctx, CTCPredicateSignalCrossoverExtension.HeadCrossoverPredicates? extensionHeads)
         {
-            if (Crossover != null && extensionHeads != null)
-            {
-                extensionHeads.predicates.Add(new CTCPredicateSignalCrossoverExtension.CrossoverPredicate
-                {
-                    crossover = ctx.Crossovers[Crossover],
-                    crossoverGroupId = CrossoverGroup ?? "",
-                    direction = CrossoverDirection,
-                    isNot = IsNot
-                });
-                return new CTCPredicateSignal.Predicate { type = CTCPredicateSignal.PredicateType.AlwaysFalse }; // Placeholder
-            }
-
             CTCPredicateSignal.Predicate predicate = new CTCPredicateSignal.Predicate();
             predicate.type = Type;
             predicate.switchNode = SwitchNode != null ? Graph.Shared.GetNode(SwitchNode) : null;
-            predicate.switchSetting = SwitchSetting;
+            predicate.switchSetting = SwitchSetting ?? Track.Signals.SwitchSetting.Normal;
             predicate.blocks = ctx.GetBlocks(Blocks);
             predicate.interlocking = Interlocking != null ? ctx.Interlockings[Interlocking] : null;
-            predicate.direction = Direction;
+            predicate.direction = Direction ?? SignalDirection.Left;
+            
+            if (extensionHeads != null)
+            {
+                extensionHeads.predicates.Add(new CTCPredicateSignalCrossoverExtension.CrossoverPredicate
+                {
+                    original = predicate,
+                    crossoverGroupId = CrossoverGroup ?? ""
+                });
+            }
+            
             return predicate;
         }
     }
@@ -107,21 +103,33 @@ public class SerializedCTCPredicateSignal : SerializedCTCSignal
         base.ApplyTo(signal, ctx);
         ApplyTo(signal, ctx);
         ctx.PredicateSignals[signal.id] = signal;
+        signal.gameObject.SetActive(true);
     }
 
     public void ApplyTo(CTCPredicateSignal signal, CTCPatchingContext ctx)
     {
+        var coPresent = signal.GetComponentInParent<CTCCrossover>(true) != null;
         var extension = signal.gameObject.GetComponent<CTCPredicateSignalCrossoverExtension>();
-        if (extension == null)
+        if (coPresent && extension == null)
+        {
+            Log.Information("SerializedCTCPredicateSignal: ApplyTo with crossover");
             extension = signal.gameObject.AddComponent<CTCPredicateSignalCrossoverExtension>();
+        }
+        extension?.heads.Clear();
         
-        extension.heads.Clear();
         signal.heads = new();
         foreach (var head in Heads)
         {
-            var extensionHeads = new CTCPredicateSignalCrossoverExtension.HeadCrossoverPredicates();
-            extension.heads.Add(extensionHeads);
-            signal.heads.Add(head.Apply(ctx, extensionHeads));
+            if (extension != null)
+            {
+                var extensionHeads = new CTCPredicateSignalCrossoverExtension.HeadCrossoverPredicates();
+                extension.heads.Add(extensionHeads);
+                signal.heads.Add(head.Apply(ctx, extensionHeads));
+            }
+            else
+            {
+                signal.heads.Add(head.Apply(ctx, null));
+            }
         }
     }
 }

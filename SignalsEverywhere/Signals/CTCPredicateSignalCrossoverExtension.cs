@@ -10,10 +10,8 @@ public class CTCPredicateSignalCrossoverExtension : MonoBehaviour
     [Serializable]
     public class CrossoverPredicate
     {
-        public CTCCrossover crossover;
-        public string crossoverGroupId;
-        public CTCTrafficFilter direction;
-        public bool isNot;
+        public CTCPredicateSignal.Predicate original;
+        public string? crossoverGroupId;
     }
 
     [Serializable]
@@ -24,31 +22,72 @@ public class CTCPredicateSignalCrossoverExtension : MonoBehaviour
 
     public List<HeadCrossoverPredicates> heads = new();
 
-    public bool IsSatisfied(int headIndex)
+    public bool IsSatisfied(CTCPredicateSignal signal, int headIndex)
     {
-        if (headIndex < 0 || headIndex >= heads.Count)
+        if (heads == null || headIndex < 0 || headIndex >= heads.Count)
+            return true;
+        
+        var head = heads[headIndex];
+        if (head == null || head.predicates == null)
             return true;
 
-        foreach (var predicate in heads[headIndex].predicates)
+        CTCCrossover co = signal.GetComponentInParent<CTCCrossover>();
+        if (co == null)
+            return true;
+        
+        var storage = co.GetComponentInParent<SignalStorage>();
+        if (storage == null)
+            return true;
+        
+        foreach (var predicate in head.predicates)
         {
-            if (!IsSatisfied(predicate))
+            if (predicate == null || predicate.original == null)
+                continue;
+
+            if (!IsSatisfied(storage, co, signal, predicate))
                 return false;
         }
         return true;
     }
 
-    private bool IsSatisfied(CrossoverPredicate predicate)
+    private bool MatchSwitchSetting(CTCPredicateSignal.Predicate predicate)
     {
-        if (predicate.crossover == null)
+        if (predicate == null || predicate.switchNode == null)
+            return true;
+        return (predicate.switchNode.isThrown ? SwitchSetting.Reversed : SwitchSetting.Normal) ==
+               predicate.switchSetting;
+    }
+
+    private bool IsSatisfied(SignalStorage storage, CTCCrossover co, CTCPredicateSignal signal, CrossoverPredicate predicate)
+    {
+        if (predicate == null || predicate.original == null)
             return true;
 
-        var storage = predicate.crossover.GetComponentInParent<SignalStorage>();
-        if (storage == null)
-            return true;
-
-        var currentDirection = storage.GetCrossoverGroupDirection(predicate.crossoverGroupId);
-        bool matches = currentDirection == predicate.direction;
-
-        return predicate.isNot ? !matches : matches;
+        switch (predicate.original.type)
+        {
+            case CTCPredicateSignal.PredicateType.Switch:
+                return MatchSwitchSetting(predicate.original);
+            case CTCPredicateSignal.PredicateType.Block:
+                return predicate.original.blocks == null || predicate.original.blocks.TrueForAll(b => b != null && !b.IsOccupied);
+            case CTCPredicateSignal.PredicateType.InterlockingTrafficDirection:
+            {
+                if (storage.SystemMode == SystemMode.ABS || predicate.crossoverGroupId == null) return true;
+                var currentDirection = storage.GetCrossoverGroupDirection(predicate.crossoverGroupId);
+                var expectedDirection = CTCCrossover.AsFilter(predicate.original.direction);
+                return currentDirection == expectedDirection;
+            }
+            case CTCPredicateSignal.PredicateType.InterlockingTrafficDirectionIsNot:
+            {
+                if (storage.SystemMode == SystemMode.ABS || predicate.crossoverGroupId == null) return true;
+                var currentDirection = storage.GetCrossoverGroupDirection(predicate.crossoverGroupId);
+                var expectedDirection = CTCCrossover.AsFilter(predicate.original.direction);
+                if (predicate.original.switchNode != null && !MatchSwitchSetting(predicate.original)) return false;
+                return currentDirection != expectedDirection;
+            }
+            case CTCPredicateSignal.PredicateType.AlwaysFalse:
+                return false;
+            default:
+                return true;
+        }
     }
 }

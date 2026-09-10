@@ -12,7 +12,7 @@ public static class SignalStorageExtensions
     private static KeyValueObject Kvo(this SignalStorage storage) => storage.GetComponent<KeyValueObject>();
     
     private static AccessTools.FieldRef<CTCAutoSignal, HashSet<IDisposable>> FieldRef = AccessTools.FieldRefAccess<CTCAutoSignal, HashSet<IDisposable>>("Observers");
-    private static AccessTools.FieldRef<CTCPredicateSignal, HashSet<IDisposable>> PredicateFieldRef = AccessTools.FieldRefAccess<CTCPredicateSignal, HashSet<IDisposable>>("Observers");
+    private static AccessTools.FieldRef<CTCSignal, HashSet<IDisposable>> SignalObserversFieldRef = AccessTools.FieldRefAccess<CTCSignal, HashSet<IDisposable>>("Observers");
     
     public static void UpdateSignalOnChange<T>(
         this CTCAutoSignal signal,
@@ -32,7 +32,7 @@ public static class SignalStorageExtensions
         if (method == null)
             method = typeof(CTCSignal).GetMethod("SetNeedsUpdate", BindingFlags.Instance | BindingFlags.NonPublic);
         
-        PredicateFieldRef(signal).Add(observeAction(itemId, _ => method.Invoke(signal, null)));
+        SignalObserversFieldRef(signal).Add(observeAction(itemId, _ => method.Invoke(signal, null)));
     }
     
     public static string CrossoverDirKey(string groupId) => $"crossover:{groupId}:direction";

@@ -71,7 +71,6 @@ public abstract class SerializedCTCSignal
 
         signal.modelController = signal.gameObject.GetComponentInChildren<CTCSignalModelController>();
         _activeByDefault(signal.modelController) = null; // reset head configuration
-        signal.gameObject.SetActive(true);
     }
     
     private static void RemoveSignalColorizers(GameObject root, PatchingContext ctx)

@@ -26,8 +26,6 @@ public class CTCSignal_SetNeedsUpdate_Patch
             __result = __instance.GetComponentInParent<CTCCrossover>().displayName;
         else
             __result = "Intermediate";
-        if (__instance.transform.rotation.x != 0) 
-            __result += " (burp)";
         return false;
     }
 }
