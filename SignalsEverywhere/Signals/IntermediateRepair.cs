@@ -13,8 +13,8 @@ namespace SignalsEverywhere.Signals;
 ///   longer has the intermediate's end block as an outlet, so aspect checks on its signals throw;
 /// - a block takes the intermediate above it as its own, and a block with an intermediate never carries a traffic
 ///   direction, so the new interlocking's signals clear without a route and nothing stops opposing moves.
-/// After building, relink such intermediates and detach blocks the intermediate doesn't list. The base game has
-/// neither case, so built-in signals are unaffected.
+/// After building, relink such intermediates (also when a patch replaced the signal they pointed at) and detach blocks
+/// the intermediate doesn't list. The base game has neither case, so built-in signals are unaffected.
 /// </summary>
 public static class IntermediateRepair
 {
@@ -49,9 +49,15 @@ public static class IntermediateRepair
     {
         var next = direction == CTCDirection.Left ? intermediate.nextSignalLeft : intermediate.nextSignalRight;
         var end = intermediate.BlockAtEnd(direction);
+        if (end == null)
+            return;
+        // A patch that replaces the next signal (for example an auto signal redefined as a predicate signal with the
+        // same id) destroys the object the intermediate points at. Unity reports a destroyed object as null, but the
+        // reference itself isn't; a next signal that was never set is left alone.
+        var destroyed = !ReferenceEquals(next, null) && next == null;
         // Signals may not be active yet, so look up their interlocking the way they will.
         var current = next == null ? null : next.GetComponentInParent<CTCInterlocking>(true);
-        if (end == null || current == null || HasOutlet(current, end))
+        if (!destroyed && (current == null || HasOutlet(current, end)))
             return;
 
         var found = new List<CTCSignal>();
@@ -68,8 +74,8 @@ public static class IntermediateRepair
 
         if (found.Count != 1)
         {
-            logger.Warning($"Intermediate {intermediate.name}: {direction} end block {end.id} isn't an outlet of {current.id} " +
-                           $"(next signal {next!.id}); found {found.Count} replacement signals, leaving it");
+            logger.Warning($"Intermediate {intermediate.name}: {direction} next signal {Describe(next, current)} doesn't lead on from " +
+                           $"end block {end.id}; found {found.Count} replacement signals, leaving it");
             return;
         }
 
@@ -77,9 +83,12 @@ public static class IntermediateRepair
             intermediate.nextSignalLeft = found[0];
         else
             intermediate.nextSignalRight = found[0];
-        logger.Information($"Intermediate {intermediate.name}: {direction} next signal {next!.id} ({current.id}) -> {found[0].id}, " +
+        logger.Information($"Intermediate {intermediate.name}: {direction} next signal {Describe(next, current)} -> {found[0].id}, " +
                            $"whose interlocking has end block {end.id} as an outlet");
     }
+
+    private static string Describe(CTCSignal? next, CTCInterlocking? current) =>
+        next == null ? "(removed)" : $"{next.id} ({current?.id})";
 
     private static bool HasOutlet(CTCInterlocking interlocking, CTCBlock block)
     {
