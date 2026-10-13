@@ -31,6 +31,29 @@ A module can contain:
 
 Ids of blocks and signals must be unique across the whole railroad, not just the module.
 
+## Tying modules to a milestone
+
+A feature is switched on by the game's own signal milestone for that stretch, and everything in it comes on together: modules you add to `BK-AJ-HW` appear as soon as the stock Bryson to Whittier signals do. To make your modules wait for a milestone of your own (a progression section in a `game-graph` file that unlocks a map feature), add a `map-feature-gates.json` to your mod folder:
+
+```json
+{
+  "gates": [
+    {
+      "mapFeature": "signals-alarka",
+      "fallbackMapFeature": "alarka",
+      "feature": "BK-AJ-HW",
+      "modules": [ "AJ-BRANCH", "AB-CN", "CN-W", "CN-M", "CN-E", "CN-AL", "AL" ]
+    }
+  ]
+}
+```
+
+- **`mapFeature`**: the map feature your milestone unlocks. The listed modules are on only while it's unlocked, and still need the stock milestone for their feature.
+- **`fallbackMapFeature`** (optional): used instead when the running game's progression has no section that unlocks `mapFeature`, for example a start your progression file doesn't add the section to. Use the map feature that builds the track, so the signals still come on with the line.
+- **`feature`** and **`modules`**: the feature your modules are in, and their keys.
+
+SignalsEverywhere itself doesn't read this file. [Tetz's SignalsEverywhere Fixes](https://www.nexusmods.com/railroader/mods/1807) 1.8.0 or later reads it from every mod folder and switches the modules with the map feature, so the file works under RailForge, FUSE and Railloader alike. Without SignalsEverywhere Fixes the file does nothing and the modules come on with their feature, so make sure that's acceptable, or list SignalsEverywhere Fixes as a requirement. In sandbox, the modules follow the map feature as set in the sandbox options.
+
 ## Blocks
 
 A **block** is one or more stretches of track. When any car is on it, the block is **occupied**. Signals look at blocks to decide whether the way ahead is clear.

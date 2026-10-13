@@ -1,6 +1,6 @@
 # 8. RailForge
 
-RailForge loads Railloader-style mods, including SignalsEverywhere, and adds its own handling for signal mods. Most players use it, so test under it. It changes three things.
+RailForge replaces Railloader and StrangeCustoms: it loads Railloader-style mods, including SignalsEverywhere, and adds its own handling for signal mods. Most players use it, so test under it. It changes three things.
 
 ## It keeps untouched control points
 
