@@ -72,6 +72,15 @@ public static class IntermediateRepair
             }
         }
 
+        // A junction can have more than one signal facing this way (one on the main, one on a branch leg). Keep the ones
+        // whose routes come in by the outlet holding the end block.
+        if (found.Count > 1)
+        {
+            var byRoute = found.FindAll(signal => EntersBy(signal, end, direction));
+            if (byRoute.Count == 1)
+                found = byRoute;
+        }
+
         if (found.Count != 1)
         {
             logger.Warning($"Intermediate {intermediate.name}: {direction} next signal {Describe(next, current)} doesn't lead on from " +
@@ -89,6 +98,30 @@ public static class IntermediateRepair
 
     private static string Describe(CTCSignal? next, CTCInterlocking? current) =>
         next == null ? "(removed)" : $"{next.id} ({current?.id})";
+
+    /// <summary>
+    /// Whether one of the signal's routes is entered from an outlet holding the block by a train moving this way (a
+    /// leftbound train enters a route by its outletRight).
+    /// </summary>
+    private static bool EntersBy(CTCSignal signal, CTCBlock block, CTCDirection direction)
+    {
+        if (signal is not CTCAutoSignal auto || auto.interlockingRouteMapping == null)
+            return false;
+        var interlocking = signal.GetComponentInParent<CTCInterlocking>(true);
+        if (interlocking == null || interlocking.routes == null)
+            return false;
+        foreach (var index in auto.interlockingRouteMapping)
+        {
+            if (index < 0 || index >= interlocking.routes.Count)
+                continue;
+            var route = interlocking.routes[index];
+            var entering = direction == CTCDirection.Left ? route.outletRight : route.outletLeft;
+            if (entering >= 0 && entering < interlocking.outlets.Count && interlocking.outlets[entering].blocks != null &&
+                interlocking.outlets[entering].blocks.Contains(block))
+                return true;
+        }
+        return false;
+    }
 
     private static bool HasOutlet(CTCInterlocking interlocking, CTCBlock block)
     {
