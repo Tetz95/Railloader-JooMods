@@ -12,7 +12,10 @@ namespace TimeSyncMod
     {
         Serilog.ILogger logger = Log.ForContext<TimeSyncMod>();
 
-        private readonly Timer syncTimer;
+        private readonly Timer? syncTimer;
+
+        // Mods are constructed on Unity's main thread; game state may only be touched there
+        private readonly SynchronizationContext? mainThread;
 
         public TimeSyncMod(IModdingContext moddingContext, IModDefinition self)
         {
@@ -20,12 +23,19 @@ namespace TimeSyncMod
 
             moddingContext.RegisterConsoleCommand(new TimeSyncCommand());
 
-            syncTimer = new Timer(SyncTimes, new AutoResetEvent(false), 1000 * 60 * 10, 1000 * 60 * 10);
+            mainThread = SynchronizationContext.Current;
+            if (mainThread == null)
+            {
+                logger.Warning("No main thread context, automatic time sync disabled");
+                return;
+            }
+
+            syncTimer = new Timer(_ => mainThread.Post(SyncTimes, null), null, 1000 * 60 * 10, 1000 * 60 * 10);
         }
 
         public void SyncTimes(object stateInfo)
         {
-            if (!Multiplayer.IsHost)
+            if (!Multiplayer.IsHost || Multiplayer.Mode != ConnectionMode.MultiplayerServer)
             {
                 return;
             }
