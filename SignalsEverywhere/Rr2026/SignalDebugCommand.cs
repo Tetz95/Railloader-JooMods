@@ -8,7 +8,7 @@ namespace SignalsEverywhere.Rr2026;
 // registered when the console starts (below). /signaldebug runs the Legacy debug command (dump signals|panel,
 // distances), plus the mod tab's buttons, as the game has no mod tabs: reload (signal definitions) and rebuild-panel.
 [ConsoleCommandHandler("/signaldebug", "SignalsEverywhere: dump, reload signals, rebuild the CTC panel")]
-public static class SignalDebugCommand
+public class SignalDebugCommand
 {
     private static DebugCommand Legacy => new(SignalsEverywhere.Shared.SignalCreator);
 
@@ -23,6 +23,17 @@ public static class SignalDebugCommand
 
     [ConsoleSubcommand("rebuild-panel", "Reload the CTC panel layout and rebuild the panel")]
     private static string RebuildPanel() => SignalsEverywhere.Shared.ReloadPanel();
+
+    [ConsoleSubcommand("show-panel", "Open the CTC panel (also the N key)")]
+    private static string ShowPanel()
+    {
+        if (Panel.CTCPanel.Shared == null)
+        {
+            return "Requires the CTC feature";
+        }
+        Panel.CTCPanel.Shared.Show();
+        return "CTC panel shown";
+    }
 }
 
 [HarmonyPatch(typeof(ConsoleCommandHandler), "Awake")]
