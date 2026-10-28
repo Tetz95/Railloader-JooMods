@@ -38,5 +38,9 @@ public abstract class WindowBase : MonoBehaviour, IProgrammaticWindow
         if (_panel != null) _panel.Dispose();
         Window.Title = Title;
         _panel = UIPanel.Create(Window.contentRectTransform, BuilderAssets, Populate);
+#if RR2026
+        if (this is CTCPanel)
+            PanelScrolling.Apply(this);
+#endif
     }
 }
