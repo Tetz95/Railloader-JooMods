@@ -273,6 +273,8 @@ public class SignalCreator
             go.SetActive(true);
         }
         
+        // Rebuilt signals and blocks first (live objects), then the intermediates beside a patched-in interlocking.
+        ReferenceRepair.Apply();
         IntermediateRepair.Apply();
 
         Graph.Shared.RebuildCollections();
