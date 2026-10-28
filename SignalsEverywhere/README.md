@@ -47,6 +47,24 @@ Mixintos apply in dependency order (a mod after the mods it requires or loads af
 Track ids follow 2026.1's map. The console command `/signaldebug` has `dump signals|panel`, `reload` (signal
 definitions), `rebuild-panel` and `show-panel`. Building for 2026.1: `dotnet build -p:RR=2026` (see `Paths.user`).
 
+**Signal milestones (2026.1).** A signal mod can add its own milestone and map feature with a `milestones.json` in its
+folder (2026.1 milestones are scene objects, out of reach of data files and Relay). The milestone is a delivery
+milestone like the game's own signal milestones; its delivery site (a `ProgressionIndustryComponent`) comes from the
+mod's map data, e.g. a Relay `Data.rl` `modifyMap`. A milestone whose prerequisites, map features or delivery site the
+running progression doesn't have is left out. Tie the signal modules to the feature with a `map-feature-gates.json`.
+```json
+{
+  "mapFeatures": [ { "identifier": "signals-alarka", "displayName": "Signals - Alarka Branch", "defaultEnableInSandbox": true } ],
+  "milestones": [ {
+    "identifier": "you-sig-alarka", "progressions": [ "ewh" ], "title": "Signals: Alarka Branch",
+    "description": "Extend signals up the Alarka Branch.", "cost": 2500,
+    "prerequisites": [ "sig-hw-bk", "alarka-branch" ], "enableFeaturesOnComplete": [ "signals-alarka" ],
+    "industryComponentId": "your-site.site-signals",
+    "deliveries": [ { "loadId": "rr/signal-parts", "carTypeFilter": "XM*", "count": 3 } ]
+  } ]
+}
+```
+
 ### File Structure
 
 The configuration is organized into a hierarchy:
