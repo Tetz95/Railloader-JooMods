@@ -2,13 +2,17 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using GalaSoft.MvvmLight.Messaging;
 using Game.Events;
 using Game.State;
 using HarmonyLib;
 using Newtonsoft.Json;
 using NotEnoughRosters.Patches;
+#if RR2026
+using Railroader.Modding;
+#else
+using GalaSoft.MvvmLight.Messaging;
 using Railloader;
+#endif
 using Serilog;
 using UI.Builder;
 using UI.EngineRoster;
@@ -17,26 +21,69 @@ using ILogger = Serilog.ILogger;
 
 namespace NotEnoughRosters;
 
+#if RR2026
+// Railroader 2026.1 loads the mod here (Info.json "assemblies"). There's no mod settings tab: the filter editor opens
+// from the roster's "Edit Filters" button.
+public sealed class ModEntryPoint : IModEntryPoint
+{
+    public void OnModLoad(IModContext context)
+    {
+        NotEnoughRosters.Shared = new NotEnoughRosters(context.ModDirectory);
+        NotEnoughRosters.Shared.OnEnable();
+    }
+
+    public void OnModUnload()
+    {
+        NotEnoughRosters.Shared?.OnDisable();
+    }
+}
+
+public class NotEnoughRosters
+{
+    private const string HarmonyId = "joo/not-enough-rosters";
+
+    public static NotEnoughRosters Shared { get; internal set; } = null!;
+
+    private readonly string _directory;
+
+    private readonly IDisposable _mapDidLoad;
+#else
 public class NotEnoughRosters : SingletonPluginBase<NotEnoughRosters>, IModTabHandler
 {
-    private readonly ILogger logger = Log.ForContext<NotEnoughRosters>();
-
     private readonly IModDefinition _modDefinition;
+
+    private string _directory => _modDefinition.Directory;
+
+    private string HarmonyId => _modDefinition.Id;
+#endif
+
+    private readonly ILogger logger = Log.ForContext<NotEnoughRosters>();
 
     private Dictionary<string, LocomotiveFilter> _rosterFilters = new();
     private UIState<string?> _selectedFilterState = new(null);
 
+#if RR2026
+    public NotEnoughRosters(string directory)
+    {
+        _directory = directory;
+
+        _rosterFilters = GetRoasters(Path.Combine(_directory, "trains.json"));
+        _mapDidLoad = EventBus.Subscribe<MapDidLoadEvent>(ml => CreateWindows());
+    }
+#else
     public NotEnoughRosters(IModdingContext moddingContext, IModDefinition self)
     {
         _modDefinition = self;
 
-        var file = Path.Combine(self.Directory, "trains.json");
-        _rosterFilters = GetRoasters(file);
-        Messenger.Default.Register<MapDidLoadEvent>(this, ml =>
-        {
-            NotEnoughRosterPanel.CreateInstance(_rosterFilters);
-            NotEnoughRostersSettingsWindow.CreateInstance();
-        });
+        _rosterFilters = GetRoasters(Path.Combine(_directory, "trains.json"));
+        Messenger.Default.Register<MapDidLoadEvent>(this, ml => CreateWindows());
+    }
+#endif
+
+    private void CreateWindows()
+    {
+        NotEnoughRosterPanel.CreateInstance(_rosterFilters);
+        NotEnoughRostersSettingsWindow.CreateInstance();
     }
 
     // The filter editor lives in its own window: a list/detail view collapses when a host
@@ -246,15 +293,23 @@ public class NotEnoughRosters : SingletonPluginBase<NotEnoughRosters>, IModTabHa
         SaveRoasters();
     }
 
+#if RR2026
+    public void OnEnable()
+#else
     public override void OnEnable()
+#endif
     {
-        var harmony = new Harmony(_modDefinition.Id);
+        var harmony = new Harmony(HarmonyId);
         harmony.PatchCategory("NotEnoughRosters");
     }
 
+#if RR2026
+    public void OnDisable()
+#else
     public override void OnDisable()
+#endif
     {
-        var harmony = new Harmony(_modDefinition.Id);
+        var harmony = new Harmony(HarmonyId);
         harmony.UnpatchCategory("NotEnoughRosters");
     }
 
@@ -281,7 +336,7 @@ public class NotEnoughRosters : SingletonPluginBase<NotEnoughRosters>, IModTabHa
 
     private void SaveRoasters()
     {
-        var file = Path.Combine(_modDefinition.Directory, "trains.json");
+        var file = Path.Combine(_directory, "trains.json");
         var json = JsonConvert.SerializeObject(_rosterFilters, Formatting.Indented);
         File.WriteAllText(file, json);
     }
