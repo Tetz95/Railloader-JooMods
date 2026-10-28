@@ -58,7 +58,11 @@ public class CTCPanel : WindowBase
 
     public void TryRebuild()
     {
-        if (Window.IsShown) Rebuild();
+        // Shared outlives the panel when another game is loaded: a destroyed panel passes the callers' `?.` (a C# null
+        // check, not Unity's), so check here before touching its window.
+        if (this == null) return;
+        var window = Window;
+        if (window != null && window.IsShown) Rebuild();
     }
 
     private void OnDisable()
