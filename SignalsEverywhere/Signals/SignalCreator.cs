@@ -99,11 +99,20 @@ public class SignalCreator
             ctx.Interlockings[interlocking.id] = interlocking;
 
         ctx.NodesById = new();
+#if RR2026
+        // Track nodes and segments are plain objects in Railroader 2026.1, held by the graph.
+        foreach (TrackNode node in Graph.Shared.Nodes)
+            ctx.NodesById[node.id] = node;
+        ctx.SegmentsById = new();
+        foreach (TrackSegment segment in Graph.Shared.AllSegments)
+            ctx.SegmentsById[segment.id] = segment;
+#else
         foreach (TrackNode node in Object.FindObjectsByType<TrackNode>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             ctx.NodesById[node.id] = node;
         ctx.SegmentsById = new();
         foreach (TrackSegment segment in Object.FindObjectsByType<TrackSegment>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             ctx.SegmentsById[segment.id] = segment;
+#endif
         ctx.SpansById = new();
         foreach (TrackSpan span in Object.FindObjectsByType<TrackSpan>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             ctx.SpansById[span.id] = span;

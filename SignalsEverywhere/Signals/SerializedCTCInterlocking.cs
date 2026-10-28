@@ -77,7 +77,11 @@ public class SerializedCTCInterlocking
         foreach (var SwitchSet in SwitchSets)
         {
             CTCInterlocking.SwitchSet set = new();
+#if RR2026
+            set.switchNodeIds = SwitchSet.Select(s => ctx.NodesById[s].id).ToList();
+#else
             set.switchNodes = SwitchSet.Select(s => ctx.NodesById[s]).ToList();
+#endif
             interlocking.switchSets.Add(set);
         }
 
