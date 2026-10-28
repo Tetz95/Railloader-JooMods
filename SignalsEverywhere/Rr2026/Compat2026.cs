@@ -12,6 +12,11 @@ namespace SignalsEverywhere.Rr2026;
 // as it does for Legacy.
 internal static class Compat2026
 {
+    extension(TrainController trainController)
+    {
+        public Graph graph => trainController.Graph;
+    }
+
     // Interlockings and predicates hold switch node ids now (track nodes are plain objects, looked up in the graph).
     extension(CTCInterlocking.SwitchSet set)
     {

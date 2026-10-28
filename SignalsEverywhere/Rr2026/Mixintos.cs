@@ -142,6 +142,20 @@ public static class Mixintos
         return result;
     }
 
+    // Whether a mod folder is one the game has loaded (its Info.json identifier).
+    public static bool IsLoadedMod(string directory, Func<string, bool> isLoaded)
+    {
+        try
+        {
+            string? id = (string?)Read(Path.Combine(directory, "Info.json"))?["identifier"];
+            return !string.IsNullOrEmpty(id) && isLoaded(id!);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     private static JObject? Read(string path)
     {
         return File.Exists(path) ? JObject.Parse(File.ReadAllText(path)) : null;

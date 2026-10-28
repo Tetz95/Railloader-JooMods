@@ -11,6 +11,10 @@ public sealed class ModEntryPoint : IModEntryPoint
     {
         _mod = new SignalsEverywhere(context.ModDirectory, context.CheckDependency);
         _mod.OnEnable();
+        MapFeatureGates.Load(System.IO.Path.GetFullPath(System.IO.Path.Combine(context.ModDirectory, "..")), context.CheckDependency);
+        var updater = new UnityEngine.GameObject("SignalsEverywhere Map Feature Gates");
+        UnityEngine.Object.DontDestroyOnLoad(updater);
+        updater.AddComponent<MapFeatureGatesUpdater>();
     }
 
     public void OnModUnload()
