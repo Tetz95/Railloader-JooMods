@@ -30,6 +30,23 @@ Declare the mixin in your mod's `Definition.json` file like this:
 }
 ```
 
+### Railroader 2026.1
+
+On Railroader 2026.1 there is no Railloader: SignalsEverywhere reads the mixintos itself, from the mods the game has
+loaded. Give your mod an `Info.json` (the game's own mod file) that requires SignalsEverywhere, and keep the
+`Definition.json` above beside it (or put the same `mixintos` object into `Info.json`):
+```json
+{
+  "identifier": "you/your-signals",
+  "version": "1.0.0",
+  "name": "Your Signals",
+  "dependencies": { "required": ["rr/game", "joo/signals-everywhere"] }
+}
+```
+Mixintos apply in dependency order (a mod after the mods it requires or loads after), as Railloader ordered them.
+Track ids follow 2026.1's map. The console command `/signaldebug` has `dump signals|panel`, `reload` (signal
+definitions), `rebuild-panel` and `show-panel`. Building for 2026.1: `dotnet build -p:RR=2026` (see `Paths.user`).
+
 ### File Structure
 
 The configuration is organized into a hierarchy:
