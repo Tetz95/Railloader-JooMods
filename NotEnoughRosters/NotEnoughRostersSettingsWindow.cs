@@ -1,6 +1,9 @@
 using NotEnoughRosters.Windows;
 using UI.Builder;
 using UI.Common;
+#if RR2026
+using UI.Windows;
+#endif
 using UnityEngine;
 
 #nullable disable

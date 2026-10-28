@@ -1,7 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+#if !RR2026
 using GalaSoft.MvvmLight.Messaging;
+#endif
 using Game.Events;
 using Game.State;
 using Model;
@@ -10,6 +12,9 @@ using Serilog;
 using UI.Builder;
 using UI.Common;
 using UI.LazyScrollList;
+#if RR2026
+using UI.Windows;
+#endif
 using UnityEngine;
 using UnityEngine.UI;
 using ILogger = Serilog.ILogger;
@@ -39,7 +44,12 @@ public class NotEnoughRosterPanel : WindowBase
 
     public override string WindowIdentifier => "NER";
     public override string Title => "Not Enough Rosters";
+#if RR2026
+    // The game's own roster opens 560 wide in 2026.1: narrower, its status column has no room.
+    public override Vector2Int DefaultSize => new(560, 800);
+#else
     public override Vector2Int DefaultSize => new(400, 800);
+#endif
     public override Window.Position DefaultPosition => Window.Position.UpperRight;
     public override Window.Sizing Sizing => Window.Sizing.Resizable(new Vector2Int(250, 150));
 
@@ -70,14 +80,22 @@ public class NotEnoughRosterPanel : WindowBase
         Rebuild();
         Window.ShowWindow();
 
+#if RR2026
+        EventBus.Subscribe<CarTrainCrewChanged>(this, ml => { _hash = -1; });
+#else
         Messenger.Default.Register<CarTrainCrewChanged>(this, ml => { _hash = -1; });
+#endif
     }
 
     public void Close()
     {
         Window.CloseWindow();
 
+#if RR2026
+        EventBus.Unsubscribe(this);
+#else
         Messenger.Default.Unregister(this);
+#endif
     }
 
     // Window.OnDidResize only fires when the drag ends, so poll the width to switch layouts while resizing.
@@ -136,7 +154,11 @@ public class NotEnoughRosterPanel : WindowBase
     {
         var shared = TrainController.Shared;
 
+#if RR2026
+        _cachedFavorites = PlayerPropertiesManager.Shared.LocalProperties.FavoriteEngineIds;
+#else
         _cachedFavorites = PlayerPropertiesManager.Shared.MyProperties.FavoriteEngineIds;
+#endif
 
         var selectedCar = shared.SelectedCar;
         var result = new Dictionary<string, List<NotEnoughRosterRowData>>();
@@ -219,11 +241,22 @@ public class NotEnoughRosterPanel : WindowBase
     public override void Populate(UIPanelBuilder builder)
     {
         _scrollList.Clear();
+#if RR2026
+        // In 2026.1 the builder's Spacer stretches vertically too, and the row took the panel's spare height: the spacer
+        // only pushes the button right.
+        builder.HStack(h =>
+        {
+            var spacer = h.Spacer().GetComponent<LayoutElement>();
+            if (spacer != null) spacer.flexibleHeight = 0f;
+            h.AddButtonCompact("Edit Filters", () => NotEnoughRostersSettingsWindow.Shared?.Show());
+        }).Height(30f);
+#else
         builder.HStack(h =>
         {
             h.Spacer();
             h.AddButtonCompact("Edit Filters", () => NotEnoughRostersSettingsWindow.Shared?.Show());
         });
+#endif
         if (_splitView && _data.Count > 1)
             SplitData(builder);
         else
@@ -290,11 +323,15 @@ public class NotEnoughRosterPanel : WindowBase
 
     private void SaveCachedFavorites()
     {
+#if RR2026
+        PlayerPropertiesManager.Shared.SetFavoriteEngineIds(_cachedFavorites);
+#else
         PlayerPropertiesManager.Shared.UpdateMyProperties(props =>
         {
             props.FavoriteEngineIds = _cachedFavorites;
             return props;
         });
+#endif
     }
 
     public void SelectEngine(BaseLocomotive engine, bool select)
