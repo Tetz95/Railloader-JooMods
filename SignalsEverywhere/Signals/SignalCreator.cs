@@ -115,7 +115,8 @@ public class SignalCreator
 #endif
         ctx.SpansById = new();
         foreach (TrackSpan span in Object.FindObjectsByType<TrackSpan>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-            ctx.SpansById[span.id] = span;
+            if (span.id != null)   // spans other mods create without an id (they can't be named in signal data anyway)
+                ctx.SpansById[span.id] = span;
 
         return ctx;
     }
