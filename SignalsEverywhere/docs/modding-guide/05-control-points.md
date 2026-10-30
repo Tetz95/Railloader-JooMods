@@ -74,6 +74,33 @@ Each signal at the control point faces into the OS block and uses `interlockingR
 
 When the dispatcher codes a route, the game checks the OS blocks are clear and the switches can move, throws them, then sets the direction. Setting the direction gives traffic direction to the OS blocks and to the outlet's blocks, and fails if the next control point already has traffic set against it on that stretch. Once a train occupies an OS block, the direction is cleared again, and the dispatcher has to code the next move.
 
+### A signal on its own
+
+The auto engineer treats Stop as absolute only at a signal that belongs to an interlocking; any other signal is stop and proceed (see [The auto engineer](02-how-ctc-works.md#the-auto-engineer)). A predicate signal standing on its own, such as a block signal at a signal box, gets the AE's absolute stop when you put it in a module with a **switchless interlocking**: no switches, two empty outlets and one route. The interlocking needs no blocks of its own.
+
+```json
+"COWEE-BOX": {
+  "interlocking": {
+    "id": "cowee-box",
+    "displayName": "Cowee Signal Box",
+    "switchSets": [],
+    "outlets": [
+      { "direction": "Left",  "blocks": [], "nextSignal": null },
+      { "direction": "Right", "blocks": [], "nextSignal": null }
+    ],
+    "routes": [ { "switchFilters": [], "outletLeft": 0, "outletRight": 1 } ]
+  },
+  "predicateSignals": {
+    "cowee-box-down": { "...": "a predicate signal with a Block predicate on cowee-down" }
+  }
+},
+"COWEE-BLOCKS": {
+  "blocks": { "cowee-down": { "...": "the block the signal protects" } }
+}
+```
+
+The signal's aspect still comes from its own predicates, so it clears by itself when its block is free, in CTC and in ABS; nobody has to code it. The AE names it by the interlocking's `displayName` ("Stop, Cowee Signal Box"). Keep the block it protects in another module (here `COWEE-BLOCKS`): in the interlocking's module it would be an OS block. Don't use `InterlockingTrafficDirection` predicates on such a signal: no route is ever coded, so in CTC they never come true.
+
 ## Intermediates
 
 An intermediate covers the automatic signals between two control points.
@@ -106,7 +133,7 @@ Between two control points with no intermediate signals, you still need the bloc
 
 The control points at each end must name the intermediate's end blocks in their outlets, and their outlets' `nextSignal` should be the first intermediate signal in that direction. The links go both ways: if you add or move a signal on the line, update the intermediate and the control points.
 
-**The stock intermediates on a feature object.** A few of the game's intermediates (between Whittier and Bryson) sit on the feature object instead of in a module, so they can't be patched. When you add a control point next to one, it keeps pointing at the old signal. Tetz's SignalsEverywhere Fixes relinks it (pending upstream as PR #8). Without it, avoid putting a new control point at the end of one of those intermediates.
+**The stock intermediates on a feature object.** A few of the game's intermediates (between Whittier and Bryson) sit on the feature object instead of in a module, so they can't be patched. When you add a control point next to one, it keeps pointing at the old signal. Tetz's SignalsEverywhere Fixes relinks it (pending upstream as PR #8), and so does the 2026.1 build. Without either, avoid putting a new control point at the end of one of those intermediates.
 
 ## Crossovers
 
@@ -117,4 +144,47 @@ A crossover is a control point that can have more than one route set at once, li
 
 Signals in a crossover are auto signals with `interlockingRouteMapping` (one route per head, like an interlocking). Predicate signals in a crossover can add `"crossoverGroup": "<groupId>"` to a predicate to tie it to a group's direction.
 
-Crossovers are SignalsEverywhere's own addition, not part of the base game. If you can, find a mod that uses one and dump its signals to see a working example before you write your own.
+Crossovers are SignalsEverywhere's own addition, not part of the base game.
+
+**Make every `groupId` unique across the whole map, not just within the crossover.** SignalsEverywhere saves a group's direction under `crossover:<groupId>:direction`, without the crossover's id. Two crossovers that both have a group `aeb` share one setting: clearing one clears the other's group too. Prefix the group with the crossover's id (`xo-aeb`).
+
+**One group per track and direction.** A group is the signals on one track facing one way. Its `allowedRoutes` are the routes a train on that track, going that way, can take: for a double crossover between tracks A and B, the eastbound group on A gets "A straight" and "A over to B". Each group then needs its own `allowedDirection`.
+
+**Coding applies every knob.** The code button reads all of the crossover's switch knobs and group knobs and codes them together. SignalsEverywhere first checks every group that's set; if any of them can't clear (its track is occupied, its route isn't lined, or it clashes with another group), nothing is coded, not even the groups that could. So before you code a new move, put any group whose train has already gone back to the middle.
+
+**Scissors crossovers.** Where the two crossover legs cross each other in a diamond, a train on one leg fouls the other. Put both legs' blocks in each crossing route's `usedBlocks`, and the two diagonal moves can't be set together.
+
+### A double crossover
+
+Tracks A and B, a crossover X1 from A (west) to B (east) and X2 from B (west) to A (east). Each crossover's switch set is the switch at both ends, thrown together. Outlets 0 and 1 are A and B on the west side, 2 and 3 on the east.
+
+```json
+"crossover": {
+  "id": "xo",
+  "displayName": "Example Crossover",
+  "switchSets": [
+    [ "<X1 switch on A>", "<X1 switch on B>" ],
+    [ "<X2 switch on B>", "<X2 switch on A>" ]
+  ],
+  "outlets": [
+    { "direction": "Left",  "blocks": [ "xo-aw" ], "nextSignal": "<next signal west on A>" },
+    { "direction": "Left",  "blocks": [ "xo-bw" ], "nextSignal": "<next signal west on B>" },
+    { "direction": "Right", "blocks": [ "xo-ae" ], "nextSignal": "<next signal east on A>" },
+    { "direction": "Right", "blocks": [ "xo-be" ], "nextSignal": "<next signal east on B>" }
+  ],
+  "routes": [
+    { "switchFilters": [ "Normal", "Normal" ],   "outletLeft": 0, "outletRight": 2, "usedBlocks": [ "xo-a" ] },
+    { "switchFilters": [ "Normal", "Normal" ],   "outletLeft": 1, "outletRight": 3, "usedBlocks": [ "xo-b" ] },
+    { "switchFilters": [ "Reversed", "Normal" ], "outletLeft": 0, "outletRight": 3, "usedBlocks": [ "xo-a", "xo-x1", "xo-b" ] },
+    { "switchFilters": [ "Normal", "Reversed" ], "outletLeft": 1, "outletRight": 2, "usedBlocks": [ "xo-b", "xo-x2", "xo-a" ] }
+  ],
+  "signalGroups": [
+    { "groupId": "xo-aeb", "signals": [ "xo-aeb" ], "allowedDirection": "Right", "allowedRoutes": [ 0, 2 ] },
+    { "groupId": "xo-beb", "signals": [ "xo-beb" ], "allowedDirection": "Right", "allowedRoutes": [ 1, 3 ] },
+    { "groupId": "xo-awb", "signals": [ "xo-awb" ], "allowedDirection": "Left",  "allowedRoutes": [ 0, 3 ] },
+    { "groupId": "xo-bwb", "signals": [ "xo-bwb" ], "allowedDirection": "Left",  "allowedRoutes": [ 1, 2 ] }
+  ]
+}
+```
+
+The plant blocks `xo-a`, `xo-b`, `xo-x1` and `xo-x2` go in the crossover's module; the outlet blocks don't (see [The interlocking's own blocks](#the-interlockings-own-blocks)). The signals `xo-aeb` (eastbound on A at the west end) and so on are auto signals in the same module, each head mapped to the routes its group can take. With both crossovers normal, eastbound on A and westbound on B can be cleared at the same time; "A over to B" uses both tracks' blocks, so it clears only on its own.
