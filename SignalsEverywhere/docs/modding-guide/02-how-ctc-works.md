@@ -33,7 +33,7 @@ Ids of blocks and signals must be unique across the whole railroad, not just the
 
 ## Tying modules to a milestone
 
-A feature is switched on by the game's own signal milestone for that stretch, and everything in it comes on together: modules you add to `BK-AJ-HW` appear as soon as the stock Bryson to Whittier signals do. To make your modules wait for a milestone of your own (a progression section in a `game-graph` file that unlocks a map feature), add a `map-feature-gates.json` to your mod folder:
+A feature is switched on by the game's own signal milestone for that stretch, and everything in it comes on together: modules you add to `BK-AJ-HW` appear as soon as the stock Bryson to Whittier signals do. To make your modules wait for a milestone of your own (on Legacy, a progression section in a `game-graph` file that unlocks a map feature; on 2026.1, a `milestones.json`, see [Your own signal milestone](11-railroader-2026.md#your-own-signal-milestone)), add a `map-feature-gates.json` to your mod folder:
 
 ```json
 {
@@ -52,7 +52,7 @@ A feature is switched on by the game's own signal milestone for that stretch, an
 - **`fallbackMapFeature`** (optional): used instead when the running game's progression has no section that unlocks `mapFeature`, for example a start your progression file doesn't add the section to. Use the map feature that builds the track, so the signals still come on with the line.
 - **`feature`** and **`modules`**: the feature your modules are in, and their keys.
 
-SignalsEverywhere itself doesn't read this file. [Tetz's SignalsEverywhere Fixes](https://www.nexusmods.com/railroader/mods/1807) 1.8.0 or later reads it from every mod folder and switches the modules with the map feature, so the file works under RailForge, FUSE and Railloader alike. Without SignalsEverywhere Fixes the file does nothing and the modules come on with their feature, so make sure that's acceptable, or list SignalsEverywhere Fixes as a requirement. In sandbox, the modules follow the map feature as set in the sandbox options.
+On 2026.1, SignalsEverywhere reads this file itself. On Legacy it doesn't: [Tetz's SignalsEverywhere Fixes](https://www.nexusmods.com/railroader/mods/1807) 1.8.0 or later reads it from every mod folder and switches the modules with the map feature, so the file works under RailForge, FUSE and Railloader alike. Without SignalsEverywhere Fixes the file does nothing and the modules come on with their feature, so make sure that's acceptable, or list SignalsEverywhere Fixes as a requirement. In sandbox, the modules follow the map feature as set in the sandbox options.
 
 ## Blocks
 
@@ -104,3 +104,4 @@ The auto engineer (AE) reads the same signals. It obeys Stop, slows for Approach
 
 - In Road mode the AE never throws switches; it stops before one that's set against it ("Switch Against").
 - The AE's Approach speed and how long it holds it come from the game, not the signal mod.
+- **Stop is absolute only at a control point.** A signal belongs to a control point when it sits in a module with an interlocking. Every other signal is an intermediate signal to the AE, and its Stop means stop and proceed: the AE stops about 15 m short, then passes it at 15 mph. A train already stopped within 40 m of it doesn't stop again, it just goes at 15 mph. At a control point signal showing Stop, the AE waits until it clears (or until the player tells it to pass). To make a lone signal absolute, see [A signal on its own](05-control-points.md#a-signal-on-its-own).

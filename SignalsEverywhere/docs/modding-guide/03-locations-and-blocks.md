@@ -82,3 +82,5 @@ Anything that still names it (a signal, an outlet, an intermediate) needs changi
 ## Seeing blocks in game
 
 SignalsEverywhere's mod tab has a **Blocks** dropdown. Pick a block and its spans are highlighted on the track. Use it to check every new block before you test with trains.
+
+Railroader 2026.1 has no mod tabs, so there's no highlight there: put a car on the block and watch its panel light.

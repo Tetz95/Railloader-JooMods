@@ -69,7 +69,14 @@ An element with `Interlock` gets a lever in the control row under its column. Pu
 
 Knob state is stored by id: `<interlocking>-0`, `<interlocking>-1`, … for switch knobs, `<interlocking>-D` for the direction knob. The game's own levers keep their old ids through `VanillaSwitchKnobIds` and `VanillaDirKnobId`; leave those as they are when you patch a stock lever.
 
-For a crossover, `Crossover` takes `Crossover` (the id), `SwitchKnobOrder`, `SignalKnobOrder`, `SwitchLabels` and `SignalLabels` (one per signal group).
+For a crossover, `Crossover` takes `Crossover` (the id), `SwitchKnobOrder`, `SignalKnobOrder`, `SwitchLabels` and `SignalLabels` (one per signal group). Its knobs are stored as `<crossover>-0`, `<crossover>-1`, … for the switch sets and `<crossover>-<groupId>` for each group.
+
+Drawing a crossover:
+
+- Put the `Crossover` entry on a `Light` (an OS light with `"Color": "red"` and `"ShowTrack": false` works well), in the column where the crossover is drawn.
+- A crossover lever is about four knobs wide (two switch knobs, four group knobs for a double crossover). Leave about ten columns between it and the next lever, with a light or track piece in every one of them, or the levers overlap. Columns count as distinct `X` values (see [How X works](#how-x-works)): `X` 5 and `X` 16 with nothing between are only one column apart.
+- Draw each crossover with one switch piece. The piece goes on one track, and its diverging leg reaches the other; nothing is drawn on the other track in that column, so fill it with a `Track` or `Light` piece, or that track has a gap. For X1 from A (row 2) down to B (row 3): `SwitchRightBottom` at X 5 on row 2, and a `Track` at X 5 on row 3.
+- For a scissors crossover, put both switch pieces in the same column (one `SwitchRightBottom` on the upper track, one `SwitchLeftTop` on the lower), so the legs cross in an X. Each fills the other's gap.
 
 Levers only appear in CTC mode.
 
@@ -112,4 +119,4 @@ For a new section, you can write plain elements. But if two mods add to the same
 
 ## Checking the panel
 
-Use **Dump CTCPanel** in SignalsEverywhere's mod tab (or `/signaldebug dump panel`) to write the merged layout to `panel-dump.json` in SignalsEverywhere's folder. If the layout can't be read at all, SignalsEverywhere writes what it had to `ctcpanel-failed.json` and the panel won't open. **Rebuild CTCPanel** reloads the layout without restarting.
+Use **Dump CTCPanel** in SignalsEverywhere's mod tab (or `/signaldebug dump panel`) to write the merged layout to `panel-dump.json` in SignalsEverywhere's folder. If the layout can't be read at all, SignalsEverywhere writes what it had to `ctcpanel-failed.json` and the panel won't open. **Rebuild CTCPanel** reloads the layout without restarting. On 2026.1 these are console commands: `/signaldebug dump panel` and `/signaldebug rebuild-panel`.
